@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build outputs
+frontend/dist/
+
+# Langfuse (third-party)
+langfuse/
+
+# Cache
+.cache/
+*.cache
+USER_ACTION.md
+UPLOAD_PREPARATION.md
+
+# Private configuration (keep public examples)
+.env.*
+!.env.example
+!.env.*.example
+
+# Local data and private project notes; retain on disk
+/data/
+/backend/test/
+/deepresearch项目/
+uploads/
+attachments/
+reports/
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+/backups/
+/.local/
+**/.local/
+
+# Locally generated demo artifacts
+/backend/chart.png
+
+# Test and editor artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.tsbuildinfo
