@@ -1,398 +1,232 @@
-# 行业信息助手 (Industry Information Assistant)
+# Industry Information Assistant
 
-一个基于 AI 的深度研究助手，支持智能搜索、知识图谱、数据可视化等功能。
+**English** | [简体中文](README.zh-CN.md)
 
-## 核心功能
+An AI-powered industry research assistant that combines multi-agent workflows, web search, knowledge graphs, data visualization, checkpoint recovery, and structured report generation.
 
-- 多 Agent 深度研究工作流：规划、检索、分析、写作与质量审核
-- 基于 SSE 的实时研究过程、搜索结果和阶段状态展示
-- PostgreSQL 检查点持久化与失败任务恢复
-- 搜索来源、知识图谱、数据图表、章节草稿和最终报告展示
-- 普通问答、会话历史与上下文记忆
-- PostgreSQL、Redis、Milvus 和 Elasticsearch 数据基础设施
+## Highlights
 
-## 工作流
+- Multi-agent research workflow covering planning, retrieval, analysis, writing, and quality review
+- Real-time research progress, reasoning summaries, and search results delivered through SSE
+- PostgreSQL checkpoints for persistence and recovery of interrupted research tasks
+- Search sources, knowledge graphs, analytical charts, chapter drafts, and final reports in one interface
+- General chat with conversation history and contextual memory
+- PostgreSQL, Redis, Milvus, and Elasticsearch infrastructure
+
+## Research Workflow
 
 ```text
-用户问题 → 研究规划 → 信息检索 → 数据分析 → 报告撰写 → 质量审核
-                                      ↑              ↓
-                                      └── 补充检索与修订 ──┘
+User query → Research planning → Information retrieval → Data analysis
+                                                        ↓
+Final report ← Quality review ← Report writing ←────────┘
+                   ↓
+          Supplementary research and revision
 ```
 
-研究任务按阶段保存检查点。失败后可以从未完成阶段继续，并复用已完成的大纲、事实、图表和章节草稿。
+Each research phase is persisted as a checkpoint. When a task fails, users can resume from the unfinished phase while reusing the existing outline, facts, charts, and chapter drafts.
 
-## 当前限制
+## Technology Stack
 
-- 深度研究以单次问题工作流为主，基于研究报告的持续多轮研究仍在规划中。
-- 阶段级恢复已经可用；单条搜索请求级的精确断点尚未实现。
-- 搜索总预算和每章搜索上限尚未完整接入执行链路，复杂问题可能产生较多搜索调用。
-- 达到最大审核轮数后会保留当前报告，即使评分仍低于质量阈值。
+| Layer | Technologies |
+|---|---|
+| Frontend | React 19, TypeScript, Vite, Ant Design, ECharts, Valtio |
+| Backend | FastAPI, Python, SQLAlchemy, SSE |
+| AI workflow | Multi-agent research graph, DeepSeek, Qwen |
+| Search and retrieval | Bocha Search, Milvus, Elasticsearch |
+| Persistence | PostgreSQL, Redis |
+| Deployment | Docker Compose |
 
-## 目录
-- [环境要求](#环境要求)
-- [快速启动](#快速启动)
-- [详细配置](#详细配置)
-- [常见问题](#常见问题)
+## Requirements
 
----
+| Dependency | Recommended version | Purpose |
+|---|---:|---|
+| Docker | 20.0+ | PostgreSQL, Redis, Milvus, Elasticsearch, MinIO, and etcd |
+| Python | 3.10+ | Backend service |
+| Node.js | 18+ | Frontend development and build |
 
-## 环境要求
+## Quick Start
 
-| 依赖 | 版本要求 | 说明 |
-|------|---------|------|
-| Docker | 20.0+ | 运行所有基础服务（PostgreSQL、Redis、Milvus、Elasticsearch） |
-| Python | 3.10+ | 后端服务 |
-| Node.js | 18+ | 前端构建 |
+### 1. Clone the repository
 
----
-
-## 快速启动
-
-### 1. 下载项目
 ```bash
-cd industry_information_assistant
+git clone https://github.com/jhao808/industry-information-assistant.git
+cd industry-information-assistant
 ```
 
-### 2. 一键启动所有基础服务 (推荐)
+### 2. Start infrastructure services
 
-**方式 A: 使用启动脚本（推荐）**
 ```bash
-# 在项目根目录执行
 chmod +x start-services.sh
 ./start-services.sh start
 ```
 
-**方式 B: 使用 Docker Compose**
+Alternatively:
+
 ```bash
-# 在项目根目录执行
 docker compose up -d
 ```
 
-验证服务状态：
+Check the service status:
+
 ```bash
-# 方式 A
 ./start-services.sh status
-
-# 方式 B
+# or
 docker compose ps
-
-# 应该看到以下服务运行中:
-# - industry_postgres (PostgreSQL)
-# - industry_redis (Redis)
-# - industry_milvus (Milvus)
-# - industry_elasticsearch (Elasticsearch)
-# - industry_minio (MinIO)
-# - industry_etcd (etcd)
 ```
 
-**服务访问地址：**
-- PostgreSQL: `localhost:5432` (用户名: `postgres`, 密码: `postgres123`)
-- Redis: `localhost:6379`
-- Milvus: `localhost:19530`
-- Elasticsearch: `localhost:1200`
-- MinIO Console: `localhost:9001` (admin/minioadmin)
+Default local services:
 
-### 3. 配置环境变量
+| Service | Address |
+|---|---|
+| PostgreSQL | `localhost:5432` |
+| Redis | `localhost:6379` |
+| Milvus | `localhost:19530` |
+| Elasticsearch | `localhost:1200` |
+| MinIO Console | `localhost:9001` |
+
+The credentials in Docker Compose are intended for local development only. Change them before deploying the project publicly.
+
+### 3. Configure environment variables
 
 ```bash
-cd backend
-
-# 复制示例配置文件
-cp .env.example .env
-
-# 编辑 .env 文件，填入你的 API Key
+cp backend/.env.example backend/.env
 ```
 
-**必填的 API Key（其他配置已预配置好）：**
+Edit `backend/.env` and provide at least:
+
 ```env
-# 阿里云百炼 (LLM & Embedding) - 必填
 DASHSCOPE_API_KEY=your-dashscope-api-key
-
-# 搜索服务 - 必填
 BOCHA_API_KEY=your-bocha-api-key
-
-# PostgreSQL 配置（已在 Docker 中配置，通常无需修改）
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres123
-POSTGRES_DB=industry_assistant
-
-# JWT 密钥（生产环境建议修改）
-JWT_SECRET_KEY=your-super-secret-key-change-in-production
+JWT_SECRET_KEY=generate-a-long-random-secret
 ```
 
-**注意：**
-- PostgreSQL、Redis、Milvus 的配置已在 Docker Compose 中设置好
-- `.env.example` 文件中的默认值与 Docker 配置匹配
-- 如果使用 Docker，数据库相关配置**通常无需修改**
-- 生产环境务必修改 `JWT_SECRET_KEY` 为随机密钥
+The default model configuration is:
 
-### 4. 安装后端依赖 & 启动
+```env
+LLM_MAIN_MODEL=deepseek-v4-pro-0813
+LLM_FAST_MODEL=qwen3.8-flash
+LLM_REVIEW_MODEL=deepseek-v4-pro-0813
+```
+
+Model availability and names depend on your Alibaba Cloud Bailian workspace. See [CONFIGURATION.md](CONFIGURATION.md) for configuration precedence and optional integrations.
+
+Generate a JWT secret with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Never commit `backend/.env` or any production credentials.
+
+### 4. Start the backend
 
 ```bash
 cd backend
-
-# 创建虚拟环境 (推荐)
-conda create -n deepresearch python=3.10
-conda activate deepresearch
-
-# 安装依赖
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# 启动后端服务
 python app/app_main.py
 ```
 
-后端默认运行在 `http://localhost:8000`
+The backend runs at `http://localhost:8000`. Interactive API documentation is available at `http://localhost:8000/docs`.
 
-### 5. 安装前端依赖 & 启动
+### 5. Start the frontend
+
+In another terminal:
 
 ```bash
 cd frontend
-
-# 安装依赖
 npm install --legacy-peer-deps
-
-# 开发模式启动
 npm run dev
 ```
 
-前端默认运行在 `http://localhost:5183/login`
+Open `http://localhost:5183/login`.
 
----
+## Project Structure
 
-## 详细配置
-
-### 环境变量说明
-
-#### 必填配置
-
-| 变量名 | 说明 | 申请地址 |
-|--------|------|----------|
-| `DASHSCOPE_API_KEY` | 阿里云百炼 (LLM & Embedding) | https://bailian.console.aliyun.com/ |
-| `BOCHA_API_KEY` | 博查搜索 API | https://open.bochaai.com/ |
-| `POSTGRES_*` | PostgreSQL 连接配置 | - |
-| `REDIS_HOST/PORT` | Redis 连接配置 | - |
-| `MILVUS_HOST/PORT` | Milvus 向量数据库配置 | - |
-| `JWT_SECRET_KEY` | JWT 认证密钥 (自定义字符串) | - |
-
-#### 其它配置
-
-| 变量名 | 说明 | 申请地址 |
-|--------|------|----------|
-| `DOCMIND_ACCESS_KEY_ID` | 阿里云 DocMind 文档解析 | https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair |
-| `DOCMIND_ACCESS_KEY_SECRET` | 阿里云 DocMind Secret | 同上 |
-| `BID_APP_KEY` | 招投标信息 API | https://market.aliyun.com/detail/cmapi00063550?spm=5176.730005.result.20.3188414aM3Wls9&innerSource=search_%E6%8B%9B%E6%8A%95%E6%A0%87#sku=yuncode5755000002 |
-| `BID_APP_SECRET` | 招投标 API Secret | 同上 |
-| `BID_APP_CODE` | 招投标 API Code | 同上 |
-| `JUHE_STOCK_API_KEY` | 聚合数据 - 股票行情 | https://www.juhe.cn/docs/api/id/21 |
-| `OPENROUTER_API_KEY` | OpenRouter (多模型网关) | https://openrouter.ai/ |
-
-
-### 高级部署选项
-
-#### 使用本地 PostgreSQL（不推荐新手）
-
-如果你想使用本地安装的 PostgreSQL 而不是 Docker：
-
-1. **安装 PostgreSQL**
-   ```bash
-   # macOS
-   brew install postgresql@15
-   brew services start postgresql@15
-   ```
-
-2. **创建数据库和用户**
-   ```bash
-   # 连接 PostgreSQL
-   psql postgres
-
-   # 创建用户
-   CREATE USER postgres WITH PASSWORD 'postgres123';
-
-   # 创建数据库
-   CREATE DATABASE industry_assistant OWNER postgres;
-
-   # 退出
-   \q
-   ```
-
-3. **修改 Docker Compose 配置**
-   ```bash
-   # 编辑 docker-compose.yml，注释掉 postgres 服务
-   # 或者使用 backend/docker-compose-base.yml（只包含 Redis 和 Milvus）
-   cd backend
-   docker compose -f docker-compose-base.yml up -d
-   ```
-
-4. **确保 `.env` 配置正确**
-   ```env
-   POSTGRES_HOST=localhost
-   POSTGRES_PORT=5432
-   POSTGRES_USER=postgres
-   POSTGRES_PASSWORD=postgres123
-   POSTGRES_DB=industry_assistant
-   ```
-
-### 数据库初始化
-
-首次启动时，后端会自动创建数据库表。如果遇到问题，可手动执行：
-
-```sql
--- 连接数据库
--- Docker: docker exec -it industry_postgres psql -U postgres -d industry_assistant
--- 本地: psql -U postgres -d industry_assistant
-
--- 确保 research_checkpoints 表有完整的列
-ALTER TABLE research_checkpoints ADD COLUMN IF NOT EXISTS ui_state_json JSONB;
-ALTER TABLE research_checkpoints ADD COLUMN IF NOT EXISTS final_report TEXT;
+```text
+industry-information-assistant/
+├── backend/
+│   ├── app/
+│   │   ├── config/                 # Environment and model configuration
+│   │   ├── core/                   # Database, Redis, and security
+│   │   ├── models/                 # SQLAlchemy models
+│   │   ├── router/                 # FastAPI routes
+│   │   ├── service/
+│   │   │   └── deep_research_v2/   # Research graph and agents
+│   │   └── app_main.py             # Backend entry point
+│   ├── tests/
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── store/
+│   └── package.json
+├── docker/
+├── docker-compose.yml
+└── start-services.sh
 ```
 
-### 服务管理
+## Checkpoint Recovery
 
-#### 使用启动脚本（推荐）
+Research state is stored in PostgreSQL by session ID. The checkpoint contains the workflow phase, outline, extracted facts, charts, chapter drafts, final report, UI state, and quality-review result.
 
-```bash
-# 启动所有服务
-./start-services.sh start
+A failed or paused task displays a **Continue Research** action. Recovery skips completed phases and resumes from the first unfinished phase. Recovery currently operates at phase level; an interruption in the middle of a search phase may repeat some searches from that phase.
 
-# 查看服务状态
-./start-services.sh status
+## Quality Review
 
-# 查看日志
-./start-services.sh logs              # 所有服务
-./start-services.sh logs postgres     # 特定服务
+The quality-review agent validates the generated report and returns a structured score and issue list. The workflow performs up to three review rounds, with at most two supplementary research or revision rounds between them. It stops early when the report passes review.
 
-# 重启服务
-./start-services.sh restart
+If the maximum review count is reached, the current report is preserved even when its score remains below the configured threshold. The UI should therefore be treated as a research aid rather than an automatic guarantee of factual accuracy.
 
-# 停止服务
-./start-services.sh stop
+## Tests and Build
 
-# 清理数据（危险操作！）
-./start-services.sh clean
-```
-
-#### 使用 Docker Compose
-
-```bash
-# 启动
-docker compose up -d
-
-# 查看状态
-docker compose ps
-
-# 查看日志
-docker compose logs -f
-docker compose logs -f postgres    # 特定服务
-
-# 停止
-docker compose down
-
-# 停止并删除数据卷（危险操作！）
-docker compose down -v
-```
-
-### 上传测试文档 (可选)
+Backend tests:
 
 ```bash
 cd backend
-curl -X POST "http://localhost:8000/documents/upload" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@./test/test_doc.pdf"
+PYTHONPATH=app .venv/bin/python -m unittest discover -s tests -v
 ```
 
----
+Python compilation check:
 
-## 常见问题
-
-### Q: Docker 容器启动失败？
 ```bash
-# 使用启动脚本查看状态
-./start-services.sh status
-
-# 查看具体服务日志
-./start-services.sh logs postgres    # 查看 PostgreSQL 日志
-./start-services.sh logs             # 查看所有服务日志
-
-# 重启所有容器
-./start-services.sh restart
-
-# 或使用 Docker Compose
-docker compose down
-docker compose up -d
+cd backend
+PYTHONPATH=app .venv/bin/python -m compileall -q app tests
 ```
 
-### Q: 后端连接数据库失败？
-**常见原因：**
-1. Docker 服务未启动
-   ```bash
-   ./start-services.sh status   # 检查服务状态
-   ./start-services.sh start    # 启动服务
-   ```
+Frontend production build:
 
-2. `.env` 文件配置错误
-   ```bash
-   # 确保配置与 Docker 一致
-   POSTGRES_USER=postgres
-   POSTGRES_PASSWORD=postgres123
-   POSTGRES_DB=industry_assistant
-   ```
-
-3. 端口被占用（如已安装本地 PostgreSQL）
-   ```bash
-   # 停止本地 PostgreSQL（如果有）
-   brew services stop postgresql
-   # 或者修改 docker-compose.yml 中的端口映射
-   ```
-
-### Q: 前端 npm install 报错？
 ```bash
-# 使用 legacy-peer-deps 解决依赖冲突
-npm install --legacy-peer-deps
-
-# 或清除缓存后重试
-rm -rf node_modules package-lock.json
-npm install --legacy-peer-deps
+cd frontend
+npm run build
 ```
 
-### Q: 研究历史无法恢复右侧面板数据？
-执行数据库迁移：
-```sql
-ALTER TABLE research_checkpoints ADD COLUMN IF NOT EXISTS ui_state_json JSONB;
-ALTER TABLE research_checkpoints ADD COLUMN IF NOT EXISTS final_report TEXT;
-```
-然后重启后端服务。
+Docker Compose validation:
 
----
-
-## 项目结构
-
-```
-industry_information_assistant/
-├── backend/
-│   ├── app/
-│   │   ├── api/          # API 路由
-│   │   ├── core/         # 核心配置
-│   │   ├── models/       # 数据模型
-│   │   ├── service/      # 业务逻辑
-│   │   └── app_main.py   # 入口文件
-│   ├── docker-compose-base.yml
-│   ├── requirements.txt
-│   └── .env
-├── frontend/
-│   ├── src/
-│   │   ├── api/          # API 调用
-│   │   ├── components/   # 组件
-│   │   ├── pages/        # 页面
-│   │   └── store/        # 状态管理
-│   └── package.json
-└── README.md
+```bash
+docker compose config
 ```
 
----
+## Current Limitations
 
-## API 文档
+- Deep research is primarily a single-query workflow. Persistent, report-aware multi-turn research is planned.
+- Recovery works at workflow-phase level; exact per-request search recovery is not implemented.
+- The global search budget and per-section search limit are not fully connected to every recursive search path, so complex tasks may create many search calls.
+- Reaching the maximum review count ends the workflow even when the final quality score remains below the threshold.
+- LLM and search calls require valid third-party credentials, model access, and sufficient quota.
 
-启动后端后访问：`http://localhost:8000/docs`
+## Security Notes
+
+- Real `.env` files, local databases, logs, dependency folders, generated reports, and build artifacts are excluded by `.gitignore`.
+- Frontend `VITE_` variables are public at build time and must never contain private API keys.
+- Replace all development passwords and generate a unique `JWT_SECRET_KEY` before deployment.
+- Review generated reports and citations before using them for professional or high-stakes decisions.
+
+## Documentation
+
+- [中文说明](README.zh-CN.md)
+- [Configuration guide](CONFIGURATION.md)
+- [Backend notes](backend/README.md)
